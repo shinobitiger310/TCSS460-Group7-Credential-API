@@ -1,0 +1,1015 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "TCSS-460 HelloWorld API",
+    "version": "1.0.0",
+    "description": "\nEducational REST API demonstrating modern Node.js/Express/TypeScript patterns for TCSS-460.\n\nThis API showcases:\n- HTTP method semantics (GET, POST, PUT, PATCH, DELETE)\n- Request parameter types (query, path, body, headers)\n- Input validation and sanitization\n- Standardized response formats\n- Error handling patterns\n- API documentation with OpenAPI/Swagger\n\n**Learning Objectives:**\n- Understand RESTful API design principles\n- Practice HTTP protocol fundamentals\n- Implement proper input validation\n- Create consistent API responses\n- Document APIs for maintainability\n        ",
+    "contact": {
+      "name": "TCSS-460 Course",
+      "email": "tcss460@uw.edu",
+      "url": "https://www.washington.edu/students/crscat/tcss.html"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "termsOfService": "https://www.washington.edu/online/terms/"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://tcss460-api.herokuapp.com",
+      "description": "Production server (example)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "System health and status endpoints"
+    },
+    {
+      "name": "Hello",
+      "description": "HTTP method demonstration endpoints"
+    },
+    {
+      "name": "Parameters",
+      "description": "Request parameter type demonstration endpoints"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "timestamp"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Indicates if the request was successful"
+          },
+          "data": {
+            "description": "Response payload data"
+          },
+          "message": {
+            "type": "string",
+            "description": "Optional human-readable message"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of the response"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "message",
+          "code",
+          "timestamp"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ],
+            "description": "Always false for error responses"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "BAD_REQUEST",
+              "UNAUTHORIZED",
+              "FORBIDDEN",
+              "NOT_FOUND",
+              "INVALID_REQUEST_FORMAT",
+              "INVALID_FIELD_VALUE",
+              "PAYLOAD_TOO_LARGE",
+              "INTERNAL_ERROR",
+              "SERVICE_UNAVAILABLE"
+            ],
+            "description": "Machine-readable error code"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of the error"
+          },
+          "details": {
+            "description": "Additional error details (development only)"
+          },
+          "validationErrors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "description": "Array of field validation errors"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Name of the field that failed validation"
+          },
+          "message": {
+            "type": "string",
+            "description": "Validation error message"
+          },
+          "value": {
+            "description": "The invalid value that was provided"
+          }
+        }
+      },
+      "HealthStatus": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "OK",
+              "WARNING",
+              "ERROR"
+            ],
+            "description": "Overall system health status"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of health check"
+          },
+          "uptime": {
+            "type": "number",
+            "description": "Server uptime in seconds"
+          },
+          "version": {
+            "type": "string",
+            "description": "API version"
+          },
+          "environment": {
+            "type": "string",
+            "enum": [
+              "development",
+              "staging",
+              "production"
+            ],
+            "description": "Current environment"
+          }
+        }
+      },
+      "HelloResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Greeting message returned by the endpoint"
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method used for the request (GET, POST, PUT, PATCH, DELETE)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Educational description explaining the HTTP method's characteristics"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO timestamp of when the response was generated"
+          }
+        }
+      },
+      "ParametersResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Personalized greeting message using the provided name"
+          },
+          "parameterType": {
+            "type": "string",
+            "enum": [
+              "query",
+              "path",
+              "body",
+              "header"
+            ],
+            "description": "Type of parameter demonstrated by this endpoint"
+          },
+          "parameterValue": {
+            "type": "string",
+            "description": "The sanitized parameter value that was received"
+          },
+          "validation": {
+            "type": "object",
+            "properties": {
+              "applied": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of validation rules that were applied"
+              },
+              "sanitized": {
+                "type": "boolean",
+                "description": "Whether the input value was sanitized for security"
+              }
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Educational description of this parameter type and its use cases"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO timestamp of when the response was generated"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Basic health check",
+        "description": "Returns simple health status for load balancer health checks",
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/HealthStatus"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "status": "OK",
+                    "timestamp": "2024-01-15T10:30:00.000Z"
+                  },
+                  "message": "API is healthy",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API is unhealthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/detailed": {
+      "get": {
+        "summary": "Detailed health information",
+        "description": "Returns comprehensive health information including uptime, version, and environment details",
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "Detailed health information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/HealthStatus"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "uptime": {
+                                  "type": "number",
+                                  "description": "Server uptime in seconds"
+                                },
+                                "version": {
+                                  "type": "string",
+                                  "description": "API version"
+                                },
+                                "environment": {
+                                  "type": "string",
+                                  "description": "Current environment"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "status": "OK",
+                    "timestamp": "2024-01-15T10:30:00.000Z",
+                    "uptime": 3600,
+                    "version": "1.0.0",
+                    "environment": "development"
+                  },
+                  "message": "API is healthy with detailed information",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hello": {
+      "get": {
+        "summary": "Retrieve hello message using GET method",
+        "description": "Demonstrates the GET HTTP method for data retrieval",
+        "tags": [
+          "Hello"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with hello message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/HelloResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "message": {
+                              "type": "string",
+                              "example": "Hello, World!"
+                            },
+                            "method": {
+                              "type": "string",
+                              "example": "GET"
+                            },
+                            "description": {
+                              "type": "string",
+                              "example": "GET is used for retrieving data. It's safe and idempotent - multiple requests have the same effect."
+                            },
+                            "timestamp": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "message": "Hello, World!",
+                  "method": "GET",
+                  "description": "GET is used for retrieving data. It's safe and idempotent.",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create or submit hello message using POST method",
+        "description": "Demonstrates the POST HTTP method for data creation/submission",
+        "tags": [
+          "Hello"
+        ],
+        "requestBody": {
+          "description": "Optional message content",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "example": "Custom hello message",
+                    "description": "Custom message to include in response"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful creation response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/HelloResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "message": {
+                              "type": "string",
+                              "example": "Hello, World! (Created)"
+                            },
+                            "method": {
+                              "type": "string",
+                              "example": "POST"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "timestamp": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "message": "Hello, World!",
+                  "method": "POST",
+                  "description": "POST is used for creating resources or submitting data with side effects.",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Create or replace hello message using PUT method",
+        "description": "Demonstrates the PUT HTTP method for resource creation/replacement",
+        "tags": [
+          "Hello"
+        ],
+        "requestBody": {
+          "description": "Message content for replacement",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "example": "Replaced hello message",
+                    "description": "Message to replace existing content"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful replacement response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/HelloResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "message": {
+                              "type": "string",
+                              "example": "Hello, World! (Replaced)"
+                            },
+                            "method": {
+                              "type": "string",
+                              "example": "PUT"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "timestamp": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "message": "Hello, World!",
+                  "method": "PUT",
+                  "description": "PUT is used for creating or completely replacing resources. It's idempotent.",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Partially update hello message using PATCH method",
+        "description": "Demonstrates the PATCH HTTP method for partial resource updates",
+        "tags": [
+          "Hello"
+        ],
+        "requestBody": {
+          "description": "Partial update data",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "example": "Partially updated message",
+                    "description": "Updated message content"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful partial update response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/HelloResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "message": {
+                              "type": "string",
+                              "example": "Hello, World! (Updated)"
+                            },
+                            "method": {
+                              "type": "string",
+                              "example": "PATCH"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "timestamp": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "message": "Hello, World!",
+                  "method": "PATCH",
+                  "description": "PATCH is used for partial updates to resources, modifying specific fields.",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove hello message using DELETE method",
+        "description": "Demonstrates the DELETE HTTP method for resource removal",
+        "tags": [
+          "Hello"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful deletion response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/HelloResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "message": {
+                              "type": "string",
+                              "example": "Hello, World! (Deleted)"
+                            },
+                            "method": {
+                              "type": "string",
+                              "example": "DELETE"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "timestamp": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "message": "Goodbye, World!",
+                  "method": "DELETE",
+                  "description": "DELETE is used for removing resources. It's idempotent.",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/parameters/query": {
+      "get": {
+        "summary": "Demonstrate query parameter usage",
+        "description": "Shows how to extract and validate data from URL query parameters",
+        "tags": [
+          "Parameters"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50,
+              "example": "StudentName"
+            },
+            "description": "Name to include in greeting (1-50 characters)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful query parameter demonstration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ParametersResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "message": {
+                              "type": "string",
+                              "example": "Hello, StudentName! This came from a query parameter."
+                            },
+                            "parameterType": {
+                              "type": "string",
+                              "example": "query"
+                            },
+                            "parameterValue": {
+                              "type": "string",
+                              "example": "StudentName"
+                            },
+                            "validation": {
+                              "type": "object",
+                              "properties": {
+                                "applied": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "example": [
+                                    "required",
+                                    "length",
+                                    "sanitization"
+                                  ]
+                                },
+                                "sanitized": {
+                                  "type": "boolean",
+                                  "example": true
+                                }
+                              }
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "timestamp": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "message": "Hello, John!",
+                  "parameterType": "query",
+                  "parameterValue": "John",
+                  "validation": {
+                    "applied": [
+                      "required",
+                      "length(1-50)",
+                      "sanitized"
+                    ],
+                    "sanitized": true
+                  },
+                  "description": "Query parameters are ideal for optional filters, pagination, and search terms",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (missing or invalid name parameter)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Validation failed",
+                  "code": "INVALID_FIELD_VALUE",
+                  "timestamp": "2024-01-15T10:30:00.000Z",
+                  "validationErrors": [
+                    {
+                      "field": "name",
+                      "message": "Name query parameter is required"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/parameters/path/{name}": {
+      "get": {
+        "summary": "Demonstrate path parameter usage",
+        "description": "Shows how to extract and validate data from URL path segments",
+        "tags": [
+          "Parameters"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 30,
+              "pattern": "^[a-zA-Z0-9\\\\s]+$"
+            },
+            "description": "Name to include in greeting (1-30 characters, alphanumeric only)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful path parameter demonstration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ParametersResponse"
+                    }
+                  ]
+                },
+                "example": {
+                  "message": "Hello, Alice!",
+                  "parameterType": "path",
+                  "parameterValue": "Alice",
+                  "validation": {
+                    "applied": [
+                      "required",
+                      "length(1-30)",
+                      "alphanumeric",
+                      "sanitized"
+                    ],
+                    "sanitized": false
+                  },
+                  "description": "Path parameters identify specific resources and represent hierarchical relationships",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (invalid name format or length)"
+          }
+        }
+      }
+    },
+    "/parameters/body": {
+      "post": {
+        "summary": "Demonstrate request body parameter usage",
+        "description": "Shows how to extract and validate data from JSON request body",
+        "tags": [
+          "Parameters"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "Name to include in greeting (1-100 characters)"
+                  }
+                }
+              },
+              "example": {
+                "name": "Bob"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful body parameter demonstration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ParametersResponse"
+                    }
+                  ]
+                },
+                "example": {
+                  "message": "Hello, Bob!",
+                  "parameterType": "body",
+                  "parameterValue": "Bob",
+                  "validation": {
+                    "applied": [
+                      "required",
+                      "length(1-100)",
+                      "json-format",
+                      "sanitized"
+                    ],
+                    "sanitized": true
+                  },
+                  "description": "Request body is ideal for complex data, form submissions, and large payloads",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (missing name field, invalid JSON, or wrong Content-Type)"
+          }
+        }
+      }
+    },
+    "/parameters/headers": {
+      "get": {
+        "summary": "Demonstrate header parameter usage",
+        "description": "Shows how to extract and validate data from HTTP headers",
+        "tags": [
+          "Parameters"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-User-Name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "description": "Name to include in greeting via custom header (1-50 characters)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful header parameter demonstration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ParametersResponse"
+                    }
+                  ]
+                },
+                "example": {
+                  "message": "Hello, Charlie!",
+                  "parameterType": "header",
+                  "parameterValue": "Charlie",
+                  "validation": {
+                    "applied": [
+                      "required",
+                      "length(1-50)",
+                      "header-format",
+                      "sanitized"
+                    ],
+                    "sanitized": false
+                  },
+                  "description": "Headers carry metadata like authentication, content-type, and API versioning",
+                  "timestamp": "2024-01-15T10:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (missing X-User-Name header or invalid format)"
+          }
+        }
+      }
+    }
+  }
+}

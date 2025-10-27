@@ -1,0 +1,14 @@
+services:
+    db:
+        image: postgres:latest
+        ports:
+            - 5432:5432
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: ads123
+            POSTGRES_USER: tcss460
+            POSTGRES_DB: auth-squared
+        container_name: auth-squared-db
+        volumes:
+            - ~/apps/postgres:/var/lib/postgresql/data
+            - ./data/init.sql:/docker-entrypoint-initdb.d/init.sql
