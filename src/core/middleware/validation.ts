@@ -103,7 +103,11 @@ export const validateRegister = [
  * - Email: required, valid email format, normalized
  */
 export const validatePasswordResetRequest = [
-    // TODO: Add validation rules here
+    body('email')
+        .trim()
+        .toLowerCase()
+        .notEmpty().withMessage('Email is required')
+        .isEmail().withMessage('Email must be valid'),
     handleValidationErrors
 ];
 
@@ -114,11 +118,14 @@ export const validatePasswordResetRequest = [
  * - password: required, 8-128 characters
  */
 export const validatePasswordReset = [
-        body('email')
+     body('token')
         .trim()
-        .toLowerCase()
-        .notEmpty().withMessage('Email is required')
-        .isEmail().withMessage('Email must be valid'),
+        .notEmpty().withMessage('Token is required'),
+    
+     body('password')
+        .notEmpty().withMessage('Password is required')
+        .isLength({ min: 8, max: 128 }).withMessage('Password must be 8-128 characters'),
+
     handleValidationErrors
 ];
 
@@ -129,7 +136,18 @@ export const validatePasswordReset = [
  * - newPassword: required, 8-128 characters, different from old password
  */
 export const validatePasswordChange = [
-    // TODO: Add validation rules here
+    body('oldPassword')
+        .notEmpty().withMessage('Old password is required'),
+    
+    body('newPassword')
+        .notEmpty().withMessage('New password is required')
+        .isLength({ min: 8, max: 128 }).withMessage('New password must be 8-128 characters')
+        .custom((value, { req }) => {
+            if (value === req.body.oldPassword) {
+                throw new Error('New password must be different from old password');
+            }
+            return true;
+        }),
     handleValidationErrors
 ];
 
@@ -143,7 +161,16 @@ export const validatePasswordChange = [
  * - carrier: optional, must be valid SMS gateway from SMS_GATEWAYS
  */
 export const validatePhoneSend = [
-    // TODO: Add validation rules here
+    body('carrier')
+        .optional()
+        .trim()
+        .custom((value) => {
+            if (!Object.values(SMS_GATEWAYS).includes(value)) {
+                throw new Error(`Carrier must be one of: ${Object.values(SMS_GATEWAYS).join(', ')}`);
+            }
+            return true;
+        }),
+    
     handleValidationErrors
 ];
 
@@ -153,7 +180,10 @@ export const validatePhoneSend = [
  * - code: required, trimmed, exactly 6 digits
  */
 export const validatePhoneVerify = [
-    // TODO: Add validation rules here
+    body('code')
+        .trim()
+        .notEmpty().withMessage('Code is required')
+        .matches(/^\d{6}$/).withMessage('Code must be exactly 6 digits'),
     handleValidationErrors
 ];
 
@@ -163,7 +193,9 @@ export const validatePhoneVerify = [
  * - token: required parameter, trimmed
  */
 export const validateEmailToken = [
-    // TODO: Add validation rules here
+    query('token')
+        .trim()
+        .notEmpty().withMessage('Token is required'),
     handleValidationErrors
 ];
 
@@ -178,7 +210,8 @@ export const validateEmailToken = [
  * - id: required, integer
  */
 export const validateUserIdParam = [
-    // TODO: Add validation rules here
+    param('id')
+        .isInt().withMessage('User ID must be an integer'),
     handleValidationErrors
 ];
 
@@ -196,8 +229,14 @@ export const validateUserIdParam = [
  * - At least one number
  * - At least one special character (@$!%*?&)
  */
-export const passwordStrength = body('password');
-    // TODO: Add password strength rules here
+export const passwordStrength = body('password')
+    .isLength({ min: 8, max: 128 }).withMessage('Password must be 8-128 characters')
+    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+    .matches(/\d/).withMessage('Password must contain at least one number')
+    .matches(/[@$!%*?&]/).withMessage('Password must contain at least one special character (@$!%*?&)');
+
+
 
 /**
  * Sanitize and validate pagination parameters
@@ -206,6 +245,13 @@ export const passwordStrength = body('password');
  * - limit: optional, integer between 1 and 100
  */
 export const validatePagination = [
-    // TODO: Add validation rules here
+    query('page')
+        .optional()
+        .isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    
+    query('limit')
+        .optional()
+        .isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
+
     handleValidationErrors
 ];
