@@ -114,7 +114,11 @@ export const validatePasswordResetRequest = [
  * - password: required, 8-128 characters
  */
 export const validatePasswordReset = [
-    // TODO: Add validation rules here
+        body('email')
+        .trim()
+        .toLowerCase()
+        .notEmpty().withMessage('Email is required')
+        .isEmail().withMessage('Email must be valid'),
     handleValidationErrors
 ];
 
