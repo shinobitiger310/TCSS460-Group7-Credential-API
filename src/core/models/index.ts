@@ -40,6 +40,10 @@ export interface IJwtClaims {
 export interface IJwtRequest extends Request {
     claims?: IJwtClaims;
     targetUserRole?: UserRole;  // Used by role hierarchy middleware
+    body: any;
+    params: any;
+    query: any;
+    headers: any;
 }
 
 /**
