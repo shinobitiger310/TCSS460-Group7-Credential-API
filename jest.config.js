@@ -14,12 +14,10 @@ module.exports = {
         '!src/**/*.test.ts',
         '!src/**/*.spec.ts',
     ],
-
     // Transform ES modules from node_modules
     transformIgnorePatterns: [
         'node_modules/(?!(marked|highlight.js)/)',
     ],
-
     // Handle your TypeScript path mappings
     moduleNameMapper: {
         '^@core/(.*)$': '<rootDir>/src/core/$1',
@@ -27,13 +25,11 @@ module.exports = {
         '^@utilities$': '<rootDir>/src/core/utilities/index',
         '^@middleware$': '<rootDir>/src/core/middleware/index',
         '^@models$': '<rootDir>/src/core/models/index',
-        '^@db$': '<rootDir>/src/core/utilities/sql_conn',
+        '^@db$': '<rootDir>/src/core/utilities/database',
         '^@auth$': '<rootDir>/src/core/utilities/credentialingUtils',
     },
-
     // Setup files to run before tests
     setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
-
     // Coverage settings
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov', 'html'],
