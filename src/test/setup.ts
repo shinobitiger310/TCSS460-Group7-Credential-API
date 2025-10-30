@@ -21,3 +21,9 @@ process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test_db';
 
 // Increase timeout for database operations
 jest.setTimeout(10000);
+
+// Mock markdown utilities to avoid ES module issues with 'marked' package
+jest.mock('../core/utilities/markdownUtils', () => ({
+    convertMarkdownToHtml: jest.fn(),
+    renderMarkdownFile: jest.fn(),
+}));
