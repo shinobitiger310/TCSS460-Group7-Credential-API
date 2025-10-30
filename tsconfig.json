@@ -6,7 +6,6 @@
     "types": ["node", "jest"],
     "outDir": "./dist",
     "rootDir": "./src",
-
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -15,20 +14,21 @@
     "declarationMap": true,
     "sourceMap": true,
     "moduleResolution": "node",
-
-    // Path mapping configuration
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
-      "@core/*": ["core/*"],
-      "@routes/*": ["routes/*"],
-      "@controllers": ["controllers/index"],
-      "@utilities": ["core/utilities/index"],
-      "@middleware": ["core/middleware/index"],
-      "@models": ["core/models/index"],
-      "@db": ["core/utilities/database"],  // Direct access to database
-      "@auth": ["core/utilities/credentialingUtils"]  // Auth utilities
+      "@core/*": ["src/core/*"],
+      "@routes/*": ["src/routes/*"],
+      "@controllers": ["src/controllers/index"],
+      "@utilities": ["src/core/utilities/index"],
+      "@middleware": ["src/core/middleware/index"],
+      "@models": ["src/core/models/index"],
+      "@db": ["src/core/utilities/database"],
+      "@auth": ["src/core/utilities/credentialingUtils"]
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/test/**/*"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/test/**/*"],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  }
 }
