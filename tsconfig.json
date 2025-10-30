@@ -22,7 +22,7 @@
       "@utilities": ["src/core/utilities/index"],
       "@middleware": ["src/core/middleware/index"],
       "@models": ["src/core/models/index"],
-      "@db": ["src/core/utilities/sql_conn"],
+      "@db": ["src/core/utilities/database"],
       "@auth": ["src/core/utilities/credentialingUtils"]
     }
   },
