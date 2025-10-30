@@ -29,13 +29,28 @@ export const createApp = (): Express => {
     // }));
     app.use(express.json());
 
-    // Serve static files from public directory
-    app.use(express.static(path.join(__dirname, '../public')));
-
-    // Root endpoint (must be before routes to avoid being caught by auth middleware)
-    // Serves index.html from public directory
+    // Root endpoint - API information
     app.get('/', (request: Request, response: Response) => {
-        response.sendFile(path.join(__dirname, '../public/index.html'));
+        response.json({
+            success: true,
+            message: 'TCSS460 Group 7 - Credential API',
+            description: 'RESTful API for Identity and Access Management (IAM)',
+            version: '1.0.0',
+            endpoints: {
+                documentation: `${request.protocol}://${request.get('host')}/api-docs`,
+                health: `${request.protocol}://${request.get('host')}/health`,
+                auth: {
+                    register: 'POST /auth/register',
+                    login: 'POST /auth/login',
+                    logout: 'POST /auth/logout'
+                },
+                verification: {
+                    phone: 'POST /verification/phone/send',
+                    email: 'GET /verification/email/:token'
+                }
+            },
+            repository: 'https://github.com/YourUsername/TCSS460-Group7-Credential-API'
+        });
     });
 
     // Load and setup Swagger documentation (must be before routes)
