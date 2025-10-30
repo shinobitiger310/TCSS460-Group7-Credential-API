@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { IJwtRequest, UserRole } from '@models';
 import { sendError } from '@utilities';
 
+
 /**
  * Middleware to require a minimum role level
  * @param minimumRole - The minimum role required (1-5)
@@ -36,5 +37,5 @@ export const requireOwner = requireRole(UserRole.OWNER);
  * @param targetRole - The target user's role
  */
 export const canManageRole = (userRole: UserRole, targetRole: UserRole): boolean => {
-    return userRole >= targetRole;
+    return userRole > targetRole;
 };

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { validationResult } from 'express-validator';
 import {
     validateLogin,
     validateRegister,
@@ -13,7 +14,25 @@ import {
     validatePagination,
     handleValidationErrors
 } from '../core/middleware/validation';
+/**
+ * Helper function to run validation chains
+ * Simulates Express middleware execution
+ */
+async function runValidation(
+    validationChain: any[],
+    req: Partial<Request>
+): Promise<any> {
+    const mockReq = req as Request;
+    const mockRes = {} as Response;
+    const mockNext = jest.fn();
 
+    // Run all validators except the last one (handleValidationErrors)
+    for (const validator of validationChain.slice(0, -1)) {
+        await validator(mockReq, mockRes, mockNext);
+    }
+
+    return validationResult(mockReq);
+}
 describe('Validation Middleware', () => {
     
     let mockRequest: Partial<Request>;
@@ -162,5 +181,6 @@ describe('Validation Middleware', () => {
                 expect(validator[validator.length - 1]).toBe(handleValidationErrors);
             });
         });
+
     });
 });
