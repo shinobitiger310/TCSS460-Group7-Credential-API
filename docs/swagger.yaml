@@ -39,7 +39,7 @@ info:
 servers:
   - url: http://localhost:8000
     description: Development server
-  - url: https://your-production-url.com
+  - url: https://tcss460-group7-credential-api-8zqv.onrender.com
     description: Production server
 
 tags:
@@ -49,6 +49,8 @@ tags:
     description: Authentication endpoints (token required)
   - name: Verification
     description: Email and phone verification
+  - name: Admin
+    description: Admin user management endpoints (Admin role required)
   - name: Testing
     description: Development and testing endpoints
 
@@ -514,6 +516,476 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  # ===== ADMIN ENDPOINTS =====
+  /admin/users/create:
+    post:
+      tags:
+        - Admin
+      summary: Create user with specified role
+      description: |
+        Admin endpoint to create a new user with a specific role.
+        **Requirements:**
+        - Requires Admin role (3+)
+        - Cannot create users with equal or higher role than your own
+        **Validation Rules:**
+        - All standard registration validation applies
+        - Role must be lower than admin's role
+      operationId: createUserAsAdmin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - firstname
+                - lastname
+                - email
+                - username
+                - password
+                - phone
+              properties:
+                firstname:
+                  type: string
+                  example: Jane
+                lastname:
+                  type: string
+                  example: Smith
+                email:
+                  type: string
+                  format: email
+                  example: jane.smith@example.com
+                username:
+                  type: string
+                  example: janesmith
+                password:
+                  type: string
+                  format: password
+                  example: SecurePass123!
+                phone:
+                  type: string
+                  example: "2065551234"
+                role:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  default: 1
+                  example: 2
+                  description: User role (1=User, 2=Moderator, 3=Admin, 4=SuperAdmin, 5=Owner)
+      responses:
+        '200':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User creation successful
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 42
+                          email:
+                            type: string
+                            example: jane.smith@example.com
+                          firstname:
+                            type: string
+                            example: Jane
+                          lastname:
+                            type: string
+                            example: Smith
+                          username:
+                            type: string
+                            example: janesmith
+                          role:
+                            type: string
+                            example: Moderator
+                          accountStatus:
+                            type: string
+                            example: active
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      summary: List users with pagination and filters
+      description: |
+        Admin endpoint to retrieve a paginated list of users with optional filters.
+        **Requirements:**
+        - Requires Admin role (3+)
+        **Filters:**
+        - role: Filter by user role (1-5)
+        - status: Filter by account status (pending, active, suspended, locked)
+        - emailVerified: Filter by email verification status (true/false)
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of users per page
+        - name: role
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+          description: Filter by role
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, active, suspended, locked]
+          description: Filter by account status
+        - name: emailVerified
+          in: query
+          schema:
+            type: boolean
+          description: Filter by email verification status
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Users retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      pagination:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          total:
+                            type: integer
+                            example: 150
+                          totalPages:
+                            type: integer
+                            example: 8
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /admin/users/search:
+    get:
+      tags:
+        - Admin
+      summary: Search users by name, email, or username
+      description: |
+        Admin endpoint to search for users by query string.
+        **Requirements:**
+        - Requires Admin role (3+)
+        - Query must be at least 2 characters
+        **Searches:**
+        - First name (case-insensitive)
+        - Last name (case-insensitive)
+        - Username (case-insensitive)
+        - Email (case-insensitive)
+      operationId: searchUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          description: Search query (minimum 2 characters)
+          example: john
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Maximum number of results
+      responses:
+        '200':
+          description: Search completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Search completed successfully
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      count:
+                        type: integer
+                        example: 5
+                      query:
+                        type: string
+                        example: john
+        '400':
+          description: Invalid search query
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Search query must be at least 2 characters
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /admin/users/{id}/role:
+    put:
+      tags:
+        - Admin
+      summary: Change user role
+      description: |
+        Admin endpoint to change a user's role.
+        **Requirements:**
+        - Requires Admin role (3+)
+        - Cannot change your own role
+        - Target user must have lower role than admin
+        - New role must be lower than admin's role
+      operationId: changeUserRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+          example: 42
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+              properties:
+                role:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 2
+                  description: New role (1=User, 2=Moderator, 3=Admin, 4=SuperAdmin, 5=Owner)
+      responses:
+        '200':
+          description: User role updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User role updated successfully
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: integer
+                        example: 42
+                      oldRole:
+                        type: string
+                        example: User
+                      newRole:
+                        type: string
+                        example: Moderator
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Cannot modify user with equal/higher role
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Cannot modify user with equal or higher role
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: User not found
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /admin/users/stats/dashboard:
+    get:
+      tags:
+        - Admin
+      summary: Get dashboard statistics
+      description: |
+        Admin endpoint to retrieve comprehensive dashboard statistics.
+        **Requirements:**
+        - Requires Admin role (3+)
+        **Statistics Include:**
+        - Total users count
+        - Users by role breakdown
+        - Users by status breakdown
+        - Verification statistics
+        - Recent users (last 7 days)
+      operationId: getDashboardStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Dashboard statistics retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      totalUsers:
+                        type: integer
+                        example: 1250
+                      usersByRole:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            role:
+                              type: string
+                              example: User
+                            roleNumber:
+                              type: integer
+                              example: 1
+                            count:
+                              type: integer
+                              example: 1000
+                      usersByStatus:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            status:
+                              type: string
+                              example: active
+                            count:
+                              type: integer
+                              example: 1100
+                      verificationStats:
+                        type: object
+                        properties:
+                          emailVerified:
+                            type: integer
+                            example: 950
+                          phoneVerified:
+                            type: integer
+                            example: 800
+                          bothVerified:
+                            type: integer
+                            example: 750
+                      recentUsers:
+                        type: integer
+                        example: 45
+                        description: Users created in the last 7 days
+                      generatedAt:
+                        type: string
+                        format: date-time
+                        example: "2025-10-30T20:30:00.000Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
 components:
   # ===== SECURITY SCHEMES =====
   securitySchemes:
@@ -648,6 +1120,53 @@ components:
           type: string
           enum: [pending, active, suspended, locked, deleted]
           example: pending
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        firstname:
+          type: string
+          example: Jane
+        lastname:
+          type: string
+          example: Smith
+        username:
+          type: string
+          example: janesmith
+        email:
+          type: string
+          format: email
+          example: jane.smith@example.com
+        phone:
+          type: string
+          example: "2065551234"
+        role:
+          type: integer
+          example: 1
+        role_name:
+          type: string
+          example: User
+        email_verified:
+          type: boolean
+          example: true
+        phone_verified:
+          type: boolean
+          example: false
+        account_status:
+          type: string
+          enum: [pending, active, suspended, locked]
+          example: active
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-01T10:30:00.000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-10-15T14:20:00.000Z"
 
     UserDetails:
       allOf:
