@@ -1,0 +1,468 @@
+{
+  "info": {
+    "name": "TCSS460 Group 7 - Admin Endpoints",
+    "description": "Postman collection for testing admin user management endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Admin - Create User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has success property\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success');",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});",
+              "",
+              "pm.test(\"Response has user data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('user');",
+              "    pm.expect(jsonData.data.user).to.have.property('id');",
+              "    pm.expect(jsonData.data.user).to.have.property('email');",
+              "});",
+              "",
+              "// Save user ID for cleanup",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set(\"test_user_id\", jsonData.data.user.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstname\": \"Test\",\n  \"lastname\": \"User\",\n  \"email\": \"testuser{{$timestamp}}@example.com\",\n  \"username\": \"testuser{{$timestamp}}\",\n  \"password\": \"TestPassword123!\",\n  \"phone\": \"2065551234\",\n  \"role\": 1\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/admin/users/create",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users", "create"]
+        },
+        "description": "Create a new user with admin privileges. Requires admin role (3+)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - List Users (All)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has users array\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('users');",
+              "    pm.expect(jsonData.data.users).to.be.an('array');",
+              "});",
+              "",
+              "pm.test(\"Response has pagination\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('pagination');",
+              "    pm.expect(jsonData.data.pagination).to.have.property('page');",
+              "    pm.expect(jsonData.data.pagination).to.have.property('limit');",
+              "    pm.expect(jsonData.data.pagination).to.have.property('total');",
+              "    pm.expect(jsonData.data.pagination).to.have.property('totalPages');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/admin/users?page=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Get paginated list of all users. Requires admin role (3+)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - List Users (Filter by Role)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"All users have correct role\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.users).to.be.an('array');",
+              "    jsonData.data.users.forEach(function(user) {",
+              "        pm.expect(user.role).to.equal(1);",
+              "    });",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/admin/users?role=1&page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users"],
+          "query": [
+            {
+              "key": "role",
+              "value": "1"
+            },
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Filter users by role (1=User). Requires admin role (3+)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - List Users (Filter by Status)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"All users have active status\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.users).to.be.an('array');",
+              "    jsonData.data.users.forEach(function(user) {",
+              "        pm.expect(user.account_status).to.equal('active');",
+              "    });",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/admin/users?status=active&page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users"],
+          "query": [
+            {
+              "key": "status",
+              "value": "active"
+            },
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Filter users by account status. Requires admin role (3+)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Search Users",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has search results\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('users');",
+              "    pm.expect(jsonData.data).to.have.property('count');",
+              "    pm.expect(jsonData.data).to.have.property('query');",
+              "    pm.expect(jsonData.data.users).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/admin/users/search?q=test&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users", "search"],
+          "query": [
+            {
+              "key": "q",
+              "value": "test"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Search users by name, email, or username. Requires admin role (3+)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Change User Role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Role was changed successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('userId');",
+              "    pm.expect(jsonData.data).to.have.property('oldRole');",
+              "    pm.expect(jsonData.data).to.have.property('newRole');",
+              "    pm.expect(jsonData.data.newRole).to.equal('Moderator');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role\": 2\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/admin/users/{{test_user_id}}/role",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users", "{{test_user_id}}", "role"]
+        },
+        "description": "Change a user's role. Requires admin role (3+). Cannot change own role or set role >= admin's role."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Dashboard Stats",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has dashboard statistics\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('totalUsers');",
+              "    pm.expect(jsonData.data).to.have.property('usersByRole');",
+              "    pm.expect(jsonData.data).to.have.property('usersByStatus');",
+              "    pm.expect(jsonData.data).to.have.property('verificationStats');",
+              "    pm.expect(jsonData.data).to.have.property('recentUsers');",
+              "    pm.expect(jsonData.data).to.have.property('generatedAt');",
+              "});",
+              "",
+              "pm.test(\"Statistics have correct types\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.totalUsers).to.be.a('number');",
+              "    pm.expect(jsonData.data.usersByRole).to.be.an('array');",
+              "    pm.expect(jsonData.data.usersByStatus).to.be.an('array');",
+              "    pm.expect(jsonData.data.verificationStats).to.be.an('object');",
+              "    pm.expect(jsonData.data.recentUsers).to.be.a('number');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/admin/users/stats/dashboard",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users", "stats", "dashboard"]
+        },
+        "description": "Get comprehensive dashboard statistics. Requires admin role (3+)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Unauthorized (No Token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"Error message indicates authentication required\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.false;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/admin/users",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users"]
+        },
+        "description": "Test that admin endpoints reject requests without authentication token."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Forbidden (User Token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "",
+              "pm.test(\"Error message indicates insufficient permissions\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.false;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{user_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/admin/users",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users"]
+        },
+        "description": "Test that admin endpoints reject requests from non-admin users."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://tcss460-group7-credential-api-8zqv.onrender.com",
+      "type": "string"
+    }
+  ]
+}
