@@ -388,6 +388,246 @@
       "response": []
     },
     {
+      "name": "Admin - Reset User Password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Password reset successful\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data).to.have.property('userId');",
+              "    pm.expect(jsonData.data).to.have.property('email');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"password\": \"NewPassword123!\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/admin/users/{{test_user_id}}/password",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users", "{{test_user_id}}", "password"]
+        },
+        "description": "Admin password reset for a user. Requires admin role (3+). Cannot reset own password via this endpoint."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Get User Details",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has user details\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data).to.have.property('user');",
+              "    pm.expect(jsonData.data.user).to.have.property('id');",
+              "    pm.expect(jsonData.data.user).to.have.property('email');",
+              "    pm.expect(jsonData.data.user).to.have.property('firstname');",
+              "    pm.expect(jsonData.data.user).to.have.property('lastname');",
+              "    pm.expect(jsonData.data.user).to.have.property('username');",
+              "    pm.expect(jsonData.data.user).to.have.property('phone');",
+              "    pm.expect(jsonData.data.user).to.have.property('role');",
+              "    pm.expect(jsonData.data.user).to.have.property('role_name');",
+              "    pm.expect(jsonData.data.user).to.have.property('account_status');",
+              "    pm.expect(jsonData.data.user).to.have.property('email_verified');",
+              "    pm.expect(jsonData.data.user).to.have.property('phone_verified');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/admin/users/{{test_user_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users", "{{test_user_id}}"]
+        },
+        "description": "Get detailed information about a specific user. Requires admin role (3+)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Update User Info",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"User info updated successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data).to.have.property('user');",
+              "    pm.expect(jsonData.data.user.firstname).to.equal('Updated');",
+              "    pm.expect(jsonData.data.user.lastname).to.equal('Name');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstname\": \"Updated\",\n  \"lastname\": \"Name\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/admin/users/{{test_user_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users", "{{test_user_id}}"]
+        },
+        "description": "Update user information (firstname, lastname, username, email, phone, accountStatus). Requires admin role (3+). Cannot modify users with equal or higher role."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Update User Account Status",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Account status updated successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data.user.account_status).to.equal('suspended');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"accountStatus\": \"suspended\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/admin/users/{{test_user_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users", "{{test_user_id}}"]
+        },
+        "description": "Update user account status (active, pending, suspended, locked). Requires admin role (3+)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Delete User (Soft Delete)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"User deleted successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data).to.have.property('userId');",
+              "    pm.expect(jsonData.data.status).to.equal('deleted');",
+              "});",
+              "",
+              "// Clear the test_user_id since user is now deleted",
+              "pm.environment.unset('test_user_id');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/admin/users/{{test_user_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["admin", "users", "{{test_user_id}}"]
+        },
+        "description": "Soft delete a user (sets account_status to 'deleted'). Requires admin role (3+). Cannot delete own account or users with equal/higher role."
+      },
+      "response": []
+    },
+    {
       "name": "Admin - Unauthorized (No Token)",
       "event": [
         {
