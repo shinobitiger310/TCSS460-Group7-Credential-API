@@ -27,6 +27,7 @@ module.exports = {
         '^@models$': '<rootDir>/src/core/models/index',
         '^@db$': '<rootDir>/src/core/utilities/database',
         '^@auth$': '<rootDir>/src/core/utilities/credentialingUtils',
+        '^@controllers$': '<rootDir>/src/controllers/index',
     },
     // Setup files to run before tests
     setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
