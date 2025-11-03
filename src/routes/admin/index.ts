@@ -22,16 +22,16 @@ adminRouter.use(requireAdmin);
 adminRouter.post('/users/create', validateRegister, AdminController.createUser);
 
 /**
- * GET /admin/users
- * List all users with pagination and filters
- */
-adminRouter.get('/users', validatePagination, AdminController.listUsers);
-
-/**
  * GET /admin/users/search
  * Search users by name, email, or username
  */
 adminRouter.get('/users/search', AdminController.searchUsers);
+
+/**
+ * GET /admin/users/stats/dashboard
+ * Get dashboard statistics
+ */
+adminRouter.get('/users/stats/dashboard', AdminController.getDashboardStats);
 
 /**
  * PUT /admin/users/:id/role
@@ -40,10 +40,35 @@ adminRouter.get('/users/search', AdminController.searchUsers);
 adminRouter.put('/users/:id/role', validateUserIdParam, AdminController.changeUserRole);
 
 /**
- * GET /admin/users/stats/dashboard
- * Get dashboard statistics
+ * PUT /admin/users/:id/password
+ * Admin password reset
  */
-adminRouter.get('/users/stats/dashboard', AdminController.getDashboardStats);
+adminRouter.put('/users/:id/password', validateUserIdParam,AdminController.resetUserPassword )
+
+
+/**
+ * GET /admin/users/:id
+ * Get user details
+ */
+adminRouter.get('/users/:id',validateUserIdParam, AdminController.getUser)
+
+/**
+ * PUT /admin/users/:id
+ * Update user
+ */
+adminRouter.put('/users/:id',validateUserIdParam, AdminController.changeUserInfo)
+/**
+ * DELETE /admin/users/:id
+ * Soft delete user
+ */
+adminRouter.delete('/users/:id', validateUserIdParam, AdminController.deleteUser)
+
+
+/**
+ * GET /admin/users
+ * List all users with pagination and filters
+ */
+adminRouter.get('/users', validatePagination, AdminController.listUsers);
+
 
 export { adminRouter };
-export default adminRouter;
