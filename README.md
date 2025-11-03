@@ -6,11 +6,11 @@ RESTful API for Identity and Access Management (IAM) providing secure authentica
 
 
 
-\*\*Live API\*\*: https://tcss460-group7-credential-api.onrender.com/
+\*\*Live API\*\*: https://tcss460-group7-credential-api-8zqv.onrender.com/
 
 
 
-\*\*Documentation\*\*: https://tcss460-group7-credential-api.onrender.com/api-docs
+\*\*Documentation\*\*: https://tcss460-group7-credential-api-8zqv.onrender.com/api-docs
 
 
 
