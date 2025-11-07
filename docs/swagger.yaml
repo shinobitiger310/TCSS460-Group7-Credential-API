@@ -1,3 +1,20 @@
+openapi: 3.0.3
+info:
+  title: TCSS460 Group 7 - Credential API
+  description: RESTful API for Identity and Access Management (IAM)
+  version: 1.0.0
+
+servers:
+  - url: https://tcss460-group7-credential-api-8zqv.onrender.com
+    description: Production server
+  - url: http://localhost:8000
+    description: Local development server
+
+tags:
+  - name: Admin
+    description: Admin-only endpoints
+
+paths:
 # Add these endpoints under the Admin section in your swagger.yaml
   
   /admin/users/{id}:
