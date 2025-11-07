@@ -1,30 +1,916 @@
-# Add these endpoints under the Admin section in your swagger.yaml
-  
-  /admin/users/{id}:
-    get:
+openapi: 3.0.0
+info:
+  title: TCSS-460-auth-squared Template API
+  description: |
+    # Authentication × Authorization = Auth²
+
+    **Student Template/Starter Project** for TCSS-460 Web API Development
+
+    This is a template project demonstrating authentication and authorization concepts. Students will implement advanced features including admin routes, role-based access control, and user management capabilities.
+    
+    ## Authentication Flow
+    1. **Register** a new account (`POST /auth/register`) - Creates a basic user (role 1)
+    2. **Login** with credentials (`POST /auth/login`) - Returns JWT token
+    3. Include token in `Authorization: Bearer <token>` header for protected endpoints
+    4. **Verify** email and phone for full account activation
+    
+    ## Role Hierarchy
+    - **1 - User**: Basic access
+    - **2 - Moderator**: User management
+    - **3 - Admin**: Full user CRUD, create equal/lower roles
+    - **4 - SuperAdmin**: System administration
+    - **5 - Owner**: Complete system control
+    
+    ## Security
+    - SHA256 password hashing with unique salts
+    - JWT tokens (14-day expiry)
+    - Email verification (48-hour tokens)
+    - SMS verification (6-digit codes, 15-minute expiry)
+    - Role-based access control with hierarchy enforcement
+
+  version: 1.0.0
+  contact:
+    name: TCSS 460 Support
+    email: tcss460professor@gmail.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://tcss460-group7-credential-api-8zqv.onrender.com
+    description: Production server
+
+tags:
+  - name: Public Auth
+    description: Authentication endpoints (no token required)
+  - name: Protected Auth
+    description: Authentication endpoints (token required)
+  - name: Verification
+    description: Email and phone verification
+  - name: Admin
+    description: Admin user management endpoints (Admin role required)
+  - name: Testing
+    description: Development and testing endpoints
+
+paths:
+  # ===== PUBLIC AUTH ENDPOINTS =====
+  /auth/register:
+    post:
       tags:
-        - Admin
-      summary: Get user details by ID
+        - Public Auth
+      summary: Register new user account
       description: |
-        Admin endpoint to retrieve detailed information about a specific user.
+        Creates a new user account with role 1 (User).
         
-        **Requirements:**
-        - Requires Admin role (3+)
-        - Returns comprehensive user information including verification status and account history
-      operationId: getUserById
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: User ID
-          example: 42
+        **Validation Rules:**
+        - Email must be unique and valid format
+        - Username must be unique, 3-50 chars, alphanumeric + underscore/hyphen
+        - Password must be 8-128 characters
+        - Phone must be at least 10 digits
+        
+        **Account Status:** New accounts are created with 'pending' status until verified.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              validRegistration:
+                summary: Valid registration
+                value:
+                  firstname: John
+                  lastname: Doe
+                  email: john.doe@example.com
+                  username: johndoe
+                  password: SecurePass123!
+                  phone: "2065551234"
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/login:
+    post:
+      tags:
+        - Public Auth
+      summary: Login with credentials
+      description: |
+        Authenticates user and returns JWT token.
+        
+        **Account Restrictions:**
+        - Suspended accounts receive 403 error
+        - Locked accounts receive 403 error
+        - Unverified accounts can login but have limited access
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              validLogin:
+                summary: Valid credentials
+                value:
+                  email: john.doe@example.com
+                  password: SecurePass123!
       responses:
         '200':
-          description: User details retrieved successfully
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/password/reset-request:
+    post:
+      tags:
+        - Public Auth
+      summary: Request password reset
+      description: |
+        Sends password reset email if account exists and email is verified.
+        
+        **Security:** Always returns same message regardless of email existence.
+        
+        **Token Expiry:** Reset tokens expire in 1 hour.
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Account email address
+            examples:
+              resetRequest:
+                value:
+                  email: john.doe@example.com
+      responses:
+        '200':
+          description: Request processed (check email if account exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/password/reset:
+    post:
+      tags:
+        - Public Auth
+      summary: Reset password with token
+      description: |
+        Resets password using token from reset email.
+        
+        **Token Requirements:**
+        - Must be valid JWT token
+        - Must have type 'password_reset'
+        - Must not be expired (1 hour limit)
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                  description: Reset token from email
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  maxLength: 128
+                  description: New password
+            examples:
+              validReset:
+                value:
+                  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  password: NewSecurePass456!
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/verify/carriers:
+    get:
+      tags:
+        - Verification
+      summary: Get supported SMS carriers
+      description: Returns list of supported carriers for SMS verification via email gateway.
+      operationId: getCarriers
+      responses:
+        '200':
+          description: List of carriers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      carriers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: att
+                            name:
+                              type: string
+                              example: Att
+                            gateway:
+                              type: string
+                              example: '@txt.att.net'
+                      note:
+                        type: string
+
+  /auth/verify/email/confirm:
+    get:
+      tags:
+        - Verification
+      summary: Verify email via link
+      description: |
+        Verifies email address using token from verification email.
+        
+        **Token Requirements:**
+        - Must match stored verification token
+        - Must not be expired (48 hour limit)
+        - Can only be used once
+      operationId: confirmEmail
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Verification token from email
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # ===== PROTECTED AUTH ENDPOINTS =====
+  /jwt_test:
+    get:
+      tags:
+        - Testing
+      summary: Test JWT token validity
+      description: Validates JWT token and returns success message.
+      operationId: testJWT
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Your token is valid
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /auth/user/password/change:
+    post:
+      tags:
+        - Protected Auth
+      summary: Change password
+      description: |
+        Changes user password (requires old password verification).
+        
+        **Requirements:**
+        - Must provide correct old password
+        - New password must be different from old
+        - Updates account timestamp
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - oldPassword
+                - newPassword
+              properties:
+                oldPassword:
+                  type: string
+                  format: password
+                  description: Current password
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 8
+                  maxLength: 128
+                  description: New password (must be different)
+            examples:
+              validChange:
+                value:
+                  oldPassword: CurrentPass123!
+                  newPassword: NewSecurePass456!
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/verify/phone/send:
+    post:
+      tags:
+        - Verification
+      summary: Send SMS verification code
+      description: |
+        Sends 6-digit verification code via SMS (email-to-SMS gateway).
+        
+        **Rate Limiting:** 1 request per minute
+        
+        **Code Expiry:** 15 minutes
+        
+        **Carrier Selection:** Optional carrier parameter for specific gateways
+      operationId: sendPhoneVerification
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                carrier:
+                  type: string
+                  description: Optional carrier ID (att, tmobile, verizon, etc.)
+                  example: att
+      responses:
+        '200':
+          description: Verification code sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      expiresIn:
+                        type: string
+                        example: 15 minutes
+                      method:
+                        type: string
+                        example: email-to-sms
+                      availableCarriers:
+                        type: array
+                        items:
+                          type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/verify/phone/verify:
+    post:
+      tags:
+        - Verification
+      summary: Verify SMS code
+      description: |
+        Verifies 6-digit code sent via SMS.
+        
+        **Attempt Limit:** 3 attempts per code
+        
+        **Code Requirements:**
+        - Must be 6 digits
+        - Must not be expired
+        - Must match most recent code
+      operationId: verifyPhone
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  pattern: '^\d{6}$'
+                  description: 6-digit verification code
+                  example: "123456"
+      responses:
+        '200':
+          description: Phone verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/verify/email/send:
+    post:
+      tags:
+        - Verification
+      summary: Send email verification
+      description: |
+        Sends verification email with link.
+        
+        **Rate Limiting:** 1 request per 5 minutes
+        
+        **Token Expiry:** 48 hours
+      operationId: sendEmailVerification
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      expiresIn:
+                        type: string
+                        example: 48 hours
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # ===== ADMIN ENDPOINTS =====
+  /admin/users/{id}:
+      get:
+        tags:
+          - Admin
+        summary: Get user details by ID
+        description: |
+          Admin endpoint to retrieve detailed information about a specific user.
+
+          **Requirements:**
+          - Requires Admin role (3+)
+          - Returns comprehensive user information including verification status and account history
+        operationId: getUserById
+        security:
+          - bearerAuth: [ ]
+        parameters:
+          - name: id
+            in: path
+            required: true
+            schema:
+              type: integer
+            description: User ID
+            example: 42
+        responses:
+          '200':
+            description: User details retrieved successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    message:
+                      type: string
+                      example: User details retrieved successfully
+                    data:
+                      type: object
+                      properties:
+                        user:
+                          $ref: '#/components/schemas/User'
+          '401':
+            $ref: '#/components/responses/UnauthorizedError'
+          '403':
+            $ref: '#/components/responses/ForbiddenError'
+          '404':
+            $ref: '#/components/responses/NotFoundError'
+          '500':
+            $ref: '#/components/responses/ServerError'
+
+      put:
+        tags:
+          - Admin
+        summary: Update user information
+        description: |
+          Admin endpoint to update user information.
+
+          **Requirements:**
+          - Requires Admin role (3+)
+          - Cannot update users with equal or higher role
+          - Cannot change user's role through this endpoint (use PUT /admin/users/:id/role)
+
+          **Updatable Fields:**
+          - First name
+          - Last name
+          - Username (must remain unique)
+          - Email (must remain unique, will require re-verification)
+          - Phone number
+          - Account status (pending, active, suspended, locked)
+        operationId: updateUser
+        security:
+          - bearerAuth: [ ]
+        parameters:
+          - name: id
+            in: path
+            required: true
+            schema:
+              type: integer
+            description: User ID
+            example: 42
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  firstname:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                    example: Jane
+                  lastname:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                    example: Smith
+                  username:
+                    type: string
+                    minLength: 3
+                    maxLength: 50
+                    pattern: '^[a-zA-Z0-9_-]+$'
+                    example: janesmith
+                  email:
+                    type: string
+                    format: email
+                    example: jane.smith@example.com
+                  phone:
+                    type: string
+                    pattern: '^\d{10,}$'
+                    example: "2065551234"
+                  account_status:
+                    type: string
+                    enum: [ pending, active, suspended, locked ]
+                    example: active
+        responses:
+          '200':
+            description: User updated successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    message:
+                      type: string
+                      example: User updated successfully
+                    data:
+                      type: object
+                      properties:
+                        user:
+                          $ref: '#/components/schemas/User'
+          '400':
+            $ref: '#/components/responses/ValidationError'
+          '401':
+            $ref: '#/components/responses/UnauthorizedError'
+          '403':
+            description: Forbidden - Cannot modify user with equal/higher role
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: false
+                    message:
+                      type: string
+                      example: Cannot modify user with equal or higher role
+          '404':
+            $ref: '#/components/responses/NotFoundError'
+          '409':
+            description: Conflict - Username or email already exists
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: false
+                    message:
+                      type: string
+                      example: Username or email already exists
+          '500':
+            $ref: '#/components/responses/ServerError'
+
+      delete:
+        tags:
+          - Admin
+        summary: Soft delete user
+        description: |
+          Admin endpoint to soft delete a user (marks account as deleted, data retained).
+
+          **Requirements:**
+          - Requires Admin role (3+)
+          - Cannot delete users with equal or higher role
+          - Cannot delete yourself
+
+          **Behavior:**
+          - Sets account_status to 'deleted'
+          - User cannot log in
+          - Data is retained for audit purposes
+          - User can potentially be restored by higher-level admin
+        operationId: deleteUser
+        security:
+          - bearerAuth: [ ]
+        parameters:
+          - name: id
+            in: path
+            required: true
+            schema:
+              type: integer
+            description: User ID
+            example: 42
+        responses:
+          '200':
+            description: User deleted successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    message:
+                      type: string
+                      example: User deleted successfully
+                    data:
+                      type: object
+                      properties:
+                        userId:
+                          type: integer
+                          example: 42
+                        deletedAt:
+                          type: string
+                          format: date-time
+                          example: "2025-10-30T20:30:00.000Z"
+          '401':
+            $ref: '#/components/responses/UnauthorizedError'
+          '403':
+            description: Forbidden - Cannot delete user with equal/higher role or yourself
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: false
+                    message:
+                      type: string
+                      example: Cannot delete user with equal or higher role
+          '404':
+            $ref: '#/components/responses/NotFoundError'
+          '500':
+            $ref: '#/components/responses/ServerError'
+
+  /admin/users/{id}/password:
+      put:
+        tags:
+          - Admin
+        summary: Admin password reset
+        description: |
+          Admin endpoint to reset a user's password without requiring the old password.
+
+          **Requirements:**
+          - Requires Admin role (3+)
+          - Cannot reset password for users with equal or higher role
+          - Cannot reset your own password (use regular password change endpoint)
+
+          **Security:**
+          - New password must meet all password requirements
+          - User's session tokens are invalidated (forced re-login)
+          - Password reset is logged for audit purposes
+        operationId: adminPasswordReset
+        security:
+          - bearerAuth: [ ]
+        parameters:
+          - name: id
+            in: path
+            required: true
+            schema:
+              type: integer
+            description: User ID
+            example: 42
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - password
+                properties:
+                  password:
+                    type: string
+                    format: password
+                    minLength: 8
+                    maxLength: 128
+                    description: New password for the user
+                    example: NewSecurePass456!
+        responses:
+          '200':
+            description: Password reset successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    message:
+                      type: string
+                      example: Password reset successfully
+                    data:
+                      type: object
+                      properties:
+                        userId:
+                          type: integer
+                          example: 42
+                        resetAt:
+                          type: string
+                          format: date-time
+                          example: "2025-10-30T20:30:00.000Z"
+                        resetBy:
+                          type: integer
+                          description: Admin user ID who performed the reset
+                          example: 5
+          '400':
+            $ref: '#/components/responses/ValidationError'
+          '401':
+            $ref: '#/components/responses/UnauthorizedError'
+          '403':
+            description: Forbidden - Cannot reset password for user with equal/higher role or yourself
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: false
+                    message:
+                      type: string
+                      example: Cannot reset password for user with equal or higher role
+          '404':
+            $ref: '#/components/responses/NotFoundError'
+          '500':
+            $ref: '#/components/responses/ServerError'
+  /admin/users/create:
+    post:
+      tags:
+        - Admin
+      summary: Create user with specified role
+      description: |
+        Admin endpoint to create a new user with a specific role.
+        **Requirements:**
+        - Requires Admin role (3+)
+        - Cannot create users with equal or higher role than your own
+        **Validation Rules:**
+        - All standard registration validation applies
+        - Role must be lower than admin's role
+      operationId: createUserAsAdmin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - firstname
+                - lastname
+                - email
+                - username
+                - password
+                - phone
+              properties:
+                firstname:
+                  type: string
+                  example: Jane
+                lastname:
+                  type: string
+                  example: Smith
+                email:
+                  type: string
+                  format: email
+                  example: jane.smith@example.com
+                username:
+                  type: string
+                  example: janesmith
+                password:
+                  type: string
+                  format: password
+                  example: SecurePass123!
+                phone:
+                  type: string
+                  example: "2065551234"
+                role:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  default: 1
+                  example: 2
+                  description: User role (1=User, 2=Moderator, 3=Admin, 4=SuperAdmin, 5=Owner)
+      responses:
+        '200':
+          description: User created successfully
           content:
             application/json:
               schema:
@@ -35,41 +921,231 @@
                     example: true
                   message:
                     type: string
-                    example: User details retrieved successfully
+                    example: User creation successful
                   data:
                     type: object
                     properties:
                       user:
-                        $ref: '#/components/schemas/User'
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 42
+                          email:
+                            type: string
+                            example: jane.smith@example.com
+                          firstname:
+                            type: string
+                            example: Jane
+                          lastname:
+                            type: string
+                            example: Smith
+                          username:
+                            type: string
+                            example: janesmith
+                          role:
+                            type: string
+                            example: Moderator
+                          accountStatus:
+                            type: string
+                            example: active
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/ServerError'
-    
+
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      summary: List users with pagination and filters
+      description: |
+        Admin endpoint to retrieve a paginated list of users with optional filters.
+        **Requirements:**
+        - Requires Admin role (3+)
+        **Filters:**
+        - role: Filter by user role (1-5)
+        - status: Filter by account status (pending, active, suspended, locked)
+        - emailVerified: Filter by email verification status (true/false)
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of users per page
+        - name: role
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+          description: Filter by role
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, active, suspended, locked]
+          description: Filter by account status
+        - name: emailVerified
+          in: query
+          schema:
+            type: boolean
+          description: Filter by email verification status
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Users retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      pagination:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          total:
+                            type: integer
+                            example: 150
+                          totalPages:
+                            type: integer
+                            example: 8
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /admin/users/search:
+    get:
+      tags:
+        - Admin
+      summary: Search users by name, email, or username
+      description: |
+        Admin endpoint to search for users by query string.
+        **Requirements:**
+        - Requires Admin role (3+)
+        - Query must be at least 2 characters
+        **Searches:**
+        - First name (case-insensitive)
+        - Last name (case-insensitive)
+        - Username (case-insensitive)
+        - Email (case-insensitive)
+      operationId: searchUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          description: Search query (minimum 2 characters)
+          example: john
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Maximum number of results
+      responses:
+        '200':
+          description: Search completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Search completed successfully
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      count:
+                        type: integer
+                        example: 5
+                      query:
+                        type: string
+                        example: john
+        '400':
+          description: Invalid search query
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Search query must be at least 2 characters
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /admin/users/{id}/role:
     put:
       tags:
         - Admin
-      summary: Update user information
+      summary: Change user role
       description: |
-        Admin endpoint to update user information.
-        
+        Admin endpoint to change a user's role.
         **Requirements:**
         - Requires Admin role (3+)
-        - Cannot update users with equal or higher role
-        - Cannot change user's role through this endpoint (use PUT /admin/users/:id/role)
-        
-        **Updatable Fields:**
-        - First name
-        - Last name
-        - Username (must remain unique)
-        - Email (must remain unique, will require re-verification)
-        - Phone number
-        - Account status (pending, active, suspended, locked)
-      operationId: updateUser
+        - Cannot change your own role
+        - Target user must have lower role than admin
+        - New role must be lower than admin's role
+      operationId: changeUserRole
       security:
         - bearerAuth: []
       parameters:
@@ -86,38 +1162,18 @@
           application/json:
             schema:
               type: object
+              required:
+                - role
               properties:
-                firstname:
-                  type: string
-                  minLength: 1
-                  maxLength: 100
-                  example: Jane
-                lastname:
-                  type: string
-                  minLength: 1
-                  maxLength: 100
-                  example: Smith
-                username:
-                  type: string
-                  minLength: 3
-                  maxLength: 50
-                  pattern: '^[a-zA-Z0-9_-]+$'
-                  example: janesmith
-                email:
-                  type: string
-                  format: email
-                  example: jane.smith@example.com
-                phone:
-                  type: string
-                  pattern: '^\d{10,}$'
-                  example: "2065551234"
-                account_status:
-                  type: string
-                  enum: [pending, active, suspended, locked]
-                  example: active
+                role:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 2
+                  description: New role (1=User, 2=Moderator, 3=Admin, 4=SuperAdmin, 5=Owner)
       responses:
         '200':
-          description: User updated successfully
+          description: User role updated successfully
           content:
             application/json:
               schema:
@@ -128,12 +1184,19 @@
                     example: true
                   message:
                     type: string
-                    example: User updated successfully
+                    example: User role updated successfully
                   data:
                     type: object
                     properties:
-                      user:
-                        $ref: '#/components/schemas/User'
+                      userId:
+                        type: integer
+                        example: 42
+                      oldRole:
+                        type: string
+                        example: User
+                      newRole:
+                        type: string
+                        example: Moderator
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -152,9 +1215,7 @@
                     type: string
                     example: Cannot modify user with equal or higher role
         '404':
-          $ref: '#/components/responses/NotFoundError'
-        '409':
-          description: Conflict - Username or email already exists
+          description: User not found
           content:
             application/json:
               schema:
@@ -165,129 +1226,31 @@
                     example: false
                   message:
                     type: string
-                    example: Username or email already exists
-        '500':
-          $ref: '#/components/responses/ServerError'
-    
-    delete:
-      tags:
-        - Admin
-      summary: Soft delete user
-      description: |
-        Admin endpoint to soft delete a user (marks account as deleted, data retained).
-        
-        **Requirements:**
-        - Requires Admin role (3+)
-        - Cannot delete users with equal or higher role
-        - Cannot delete yourself
-        
-        **Behavior:**
-        - Sets account_status to 'deleted'
-        - User cannot log in
-        - Data is retained for audit purposes
-        - User can potentially be restored by higher-level admin
-      operationId: deleteUser
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: User ID
-          example: 42
-      responses:
-        '200':
-          description: User deleted successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: User deleted successfully
-                  data:
-                    type: object
-                    properties:
-                      userId:
-                        type: integer
-                        example: 42
-                      deletedAt:
-                        type: string
-                        format: date-time
-                        example: "2025-10-30T20:30:00.000Z"
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          description: Forbidden - Cannot delete user with equal/higher role or yourself
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: Cannot delete user with equal or higher role
-        '404':
-          $ref: '#/components/responses/NotFoundError'
+                    example: User not found
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /admin/users/{id}/password:
-    put:
+  /admin/users/stats/dashboard:
+    get:
       tags:
         - Admin
-      summary: Admin password reset
+      summary: Get dashboard statistics
       description: |
-        Admin endpoint to reset a user's password without requiring the old password.
-        
+        Admin endpoint to retrieve comprehensive dashboard statistics.
         **Requirements:**
         - Requires Admin role (3+)
-        - Cannot reset password for users with equal or higher role
-        - Cannot reset your own password (use regular password change endpoint)
-        
-        **Security:**
-        - New password must meet all password requirements
-        - User's session tokens are invalidated (forced re-login)
-        - Password reset is logged for audit purposes
-      operationId: adminPasswordReset
+        **Statistics Include:**
+        - Total users count
+        - Users by role breakdown
+        - Users by status breakdown
+        - Verification statistics
+        - Recent users (last 7 days)
+      operationId: getDashboardStats
       security:
         - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: User ID
-          example: 42
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - password
-              properties:
-                password:
-                  type: string
-                  format: password
-                  minLength: 8
-                  maxLength: 128
-                  description: New password for the user
-                  example: NewSecurePass456!
       responses:
         '200':
-          description: Password reset successfully
+          description: Dashboard statistics retrieved successfully
           content:
             application/json:
               schema:
@@ -298,39 +1261,426 @@
                     example: true
                   message:
                     type: string
-                    example: Password reset successfully
+                    example: Dashboard statistics retrieved successfully
                   data:
                     type: object
                     properties:
-                      userId:
+                      totalUsers:
                         type: integer
-                        example: 42
-                      resetAt:
+                        example: 1250
+                      usersByRole:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            role:
+                              type: string
+                              example: User
+                            roleNumber:
+                              type: integer
+                              example: 1
+                            count:
+                              type: integer
+                              example: 1000
+                      usersByStatus:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            status:
+                              type: string
+                              example: active
+                            count:
+                              type: integer
+                              example: 1100
+                      verificationStats:
+                        type: object
+                        properties:
+                          emailVerified:
+                            type: integer
+                            example: 950
+                          phoneVerified:
+                            type: integer
+                            example: 800
+                          bothVerified:
+                            type: integer
+                            example: 750
+                      recentUsers:
+                        type: integer
+                        example: 45
+                        description: Users created in the last 7 days
+                      generatedAt:
                         type: string
                         format: date-time
                         example: "2025-10-30T20:30:00.000Z"
-                      resetBy:
-                        type: integer
-                        description: Admin user ID who performed the reset
-                        example: 5
-        '400':
-          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Forbidden - Cannot reset password for user with equal/higher role or yourself
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: Cannot reset password for user with equal or higher role
-        '404':
-          $ref: '#/components/responses/NotFoundError'
+          $ref: '#/components/responses/ForbiddenError'
         '500':
           $ref: '#/components/responses/ServerError'
+
+components:
+  # ===== SECURITY SCHEMES =====
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token from login or registration.
+        
+        Format: `Bearer <token>`
+        
+        Expiry: 14 days
+
+  # ===== PARAMETERS =====
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: User ID
+
+  # ===== SCHEMAS =====
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - firstname
+        - lastname
+        - email
+        - username
+        - password
+        - phone
+      properties:
+        firstname:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: John
+        lastname:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Doe
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9_-]+$'
+          example: johndoe
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          example: SecurePass123!
+        phone:
+          type: string
+          pattern: '^\d{10,}$'
+          example: "2065551234"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        password:
+          type: string
+          format: password
+          example: SecurePass123!
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login successful
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+              description: JWT access token
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            user:
+              $ref: '#/components/schemas/UserInfo'
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        name:
+          type: string
+          example: John
+        lastname:
+          type: string
+          example: Doe
+        username:
+          type: string
+          example: johndoe
+        role:
+          type: string
+          enum: [User, Moderator, Admin, SuperAdmin, Owner]
+          example: User
+        emailVerified:
+          type: boolean
+          example: false
+        phoneVerified:
+          type: boolean
+          example: false
+        accountStatus:
+          type: string
+          enum: [pending, active, suspended, locked, deleted]
+          example: pending
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        firstname:
+          type: string
+          example: Jane
+        lastname:
+          type: string
+          example: Smith
+        username:
+          type: string
+          example: janesmith
+        email:
+          type: string
+          format: email
+          example: jane.smith@example.com
+        phone:
+          type: string
+          example: "2065551234"
+        role:
+          type: integer
+          example: 1
+        role_name:
+          type: string
+          example: User
+        email_verified:
+          type: boolean
+          example: true
+        phone_verified:
+          type: boolean
+          example: false
+        account_status:
+          type: string
+          enum: [pending, active, suspended, locked]
+          example: active
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-01T10:30:00.000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-10-15T14:20:00.000Z"
+
+    UserDetails:
+      allOf:
+        - $ref: '#/components/schemas/UserInfo'
+        - type: object
+          properties:
+            firstName:
+              type: string
+              example: John
+            lastName:
+              type: string
+              example: Doe
+            phone:
+              type: string
+              example: "2065551234"
+            roleLevel:
+              type: integer
+              minimum: 1
+              maximum: 5
+              example: 1
+            createdAt:
+              type: string
+              format: date-time
+              example: '2024-01-15T10:30:00Z'
+            updatedAt:
+              type: string
+              format: date-time
+              example: '2024-01-15T10:30:00Z'
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation successful
+        data:
+          type: object
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Error message
+        errorCode:
+          type: string
+          example: AUTH001
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation failed
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: email
+              message:
+                type: string
+                example: Invalid email format
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        totalUsers:
+          type: integer
+          example: 150
+        totalPages:
+          type: integer
+          example: 8
+
+  # ===== RESPONSES =====
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            noToken:
+              value:
+                success: false
+                message: Auth token is not supplied
+                errorCode: AUTH009
+            invalidCredentials:
+              value:
+                success: false
+                message: Invalid credentials
+                errorCode: AUTH001
+
+    ForbiddenError:
+      description: Access forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidToken:
+              value:
+                success: false
+                message: Token is not valid
+                errorCode: AUTH007
+            insufficientRole:
+              value:
+                success: false
+                message: Admin access required
+                errorCode: AUTH009
+            accountSuspended:
+              value:
+                success: false
+                message: Account is suspended. Please contact support.
+                errorCode: AUTH005
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            userNotFound:
+              value:
+                success: false
+                message: User not found
+                errorCode: USER001
+
+    RateLimitError:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            tooManyRequests:
+              value:
+                success: false
+                message: Please wait before requesting again
+                errorCode: VRFY006
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            databaseError:
+              value:
+                success: false
+                message: Server error - contact support
+                errorCode: SRVR001
+
+
+
