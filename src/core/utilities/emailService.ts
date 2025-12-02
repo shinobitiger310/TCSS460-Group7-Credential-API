@@ -14,14 +14,22 @@ let emailTransporter: nodemailer.Transporter | null = null;
  */
 export const initializeEmailService = (): void => {
     try {
+        const emailService = getEnvVar('EMAIL_SERVICE', 'gmail');
+        const emailUser = getEnvVar('EMAIL_USER');
+
+        console.log('🔧 Initializing email service...');
+        console.log(`   Service: ${emailService}`);
+        console.log(`   User: ${emailUser}`);
+        console.log(`   Password: ${emailUser ? '***' + getEnvVar('EMAIL_PASSWORD').slice(-4) : 'NOT SET'}`);
+
         emailTransporter = nodemailer.createTransport({
-            service: getEnvVar('EMAIL_SERVICE', 'gmail'),
+            service: emailService,
             auth: {
-                user: getEnvVar('EMAIL_USER'),
+                user: emailUser,
                 pass: getEnvVar('EMAIL_PASSWORD'),
             },
         });
-        
+
         console.log('✅ Email service initialized successfully');
     } catch (error) {
         console.error('❌ Failed to initialize email service:', error);
@@ -68,7 +76,12 @@ export const sendEmail = async (options: {
         
         return true;
     } catch (error) {
-        console.error('Failed to send email:', error);
+        console.error('❌ Failed to send email:');
+        console.error('Error details:', error);
+        if (error instanceof Error) {
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+        }
         return false;
     }
 };
