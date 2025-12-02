@@ -185,7 +185,7 @@ export class AuthController {
             }
     
             if (!accountResult.rows[0].email_verified) {
-                sendError(response, 403, 'Email must be verified before changing password', ErrorCodes.VRFY_EMAIL_NOT_VERIFIED);
+                sendError(response, 403, 'Email must be verified before changing password', ErrorCodes.USER_EMAIL_NOT_VERIFIED);
                 return;
             }
             // Get current credentials
