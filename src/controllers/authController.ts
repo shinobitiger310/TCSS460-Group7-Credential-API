@@ -173,6 +173,21 @@ export class AuthController {
         const userId = request.claims.id;
 
         try {
+            // Check if email is verified first
+            const accountResult = await pool.query(
+                'SELECT Email_Verified FROM Account WHERE Account_ID = $1',
+                [userId]
+            );
+    
+            if (accountResult.rowCount === 0) {
+                sendError(response, 404, 'User not found', ErrorCodes.USER_NOT_FOUND);
+                return;
+            }
+    
+            if (!accountResult.rows[0].email_verified) {
+                sendError(response, 403, 'Email must be verified before changing password', ErrorCodes.VRFY_EMAIL_NOT_VERIFIED);
+                return;
+            }
             // Get current credentials
             const credentialsResult = await pool.query(
                 'SELECT Salted_Hash, Salt FROM Account_Credential WHERE Account_ID = $1',
