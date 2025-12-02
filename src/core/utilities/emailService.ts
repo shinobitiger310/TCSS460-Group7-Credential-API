@@ -1,46 +1,36 @@
 // src/core/utilities/emailService.ts
-import { Resend } from 'resend';
-import { getEnvVar, isProduction, isDevelopment } from './envConfig';
-import { SMS_GATEWAYS } from '@models';
 import * as nodemailer from 'nodemailer';
+import { getEnvVar, isProduction } from './envConfig';
+import { SMS_GATEWAYS } from '@models';
 
 /**
- * Resend client instance
- */
-let resendClient: Resend | null = null;
-
-/**
- * Nodemailer transporter for SMS (fallback)
+ * Singleton email transporter instance
  */
 let emailTransporter: nodemailer.Transporter | null = null;
 
 /**
- * Initialize email service (Resend)
+ * Initialize email transporter
  * Call this once at application startup
  */
 export const initializeEmailService = (): void => {
     try {
-        const resendApiKey = getEnvVar('RESEND_API_KEY');
-        const emailFrom = getEnvVar('EMAIL_FROM', 'onboarding@resend.dev');
+        const emailService = getEnvVar('EMAIL_SERVICE', 'gmail');
+        const emailUser = getEnvVar('EMAIL_USER');
 
-        console.log('🔧 Initializing email service (Resend)...');
-        console.log(`   API Key: ${resendApiKey ? '***' + resendApiKey.slice(-8) : 'NOT SET'}`);
-        console.log(`   From: ${emailFrom}`);
+        console.log('🔧 Initializing email service...');
+        console.log(`   Service: ${emailService}`);
+        console.log(`   User: ${emailUser}`);
+        console.log(`   Password: ${emailUser ? '***' + getEnvVar('EMAIL_PASSWORD').slice(-4) : 'NOT SET'}`);
 
-        resendClient = new Resend(resendApiKey);
+        emailTransporter = nodemailer.createTransport({
+            service: emailService,
+            auth: {
+                user: emailUser,
+                pass: getEnvVar('EMAIL_PASSWORD'),
+            },
+        });
 
-        // Still initialize nodemailer for SMS gateway (if needed)
-        if (getEnvVar('EMAIL_USER') && getEnvVar('EMAIL_PASSWORD')) {
-            emailTransporter = nodemailer.createTransport({
-                service: getEnvVar('EMAIL_SERVICE', 'gmail'),
-                auth: {
-                    user: getEnvVar('EMAIL_USER'),
-                    pass: getEnvVar('EMAIL_PASSWORD'),
-                },
-            });
-        }
-
-        console.log('✅ Email service initialized successfully (Resend)');
+        console.log('✅ Email service initialized successfully');
     } catch (error) {
         console.error('❌ Failed to initialize email service:', error);
         throw error;
@@ -48,27 +38,17 @@ export const initializeEmailService = (): void => {
 };
 
 /**
- * Get the Resend client instance
- */
-const getResend = (): Resend => {
-    if (!resendClient) {
-        throw new Error('Email service not initialized. Call initializeEmailService() first.');
-    }
-    return resendClient;
-};
-
-/**
- * Get the email transporter instance (for SMS)
+ * Get the email transporter instance
  */
 const getTransporter = (): nodemailer.Transporter => {
     if (!emailTransporter) {
-        throw new Error('Email transporter not initialized.');
+        throw new Error('Email service not initialized. Call initializeEmailService() first.');
     }
     return emailTransporter;
 };
 
 /**
- * Send an email using Resend
+ * Send an email
  */
 export const sendEmail = async (options: {
     to: string;
@@ -78,23 +58,13 @@ export const sendEmail = async (options: {
 }): Promise<boolean> => {
     try {
         const shouldSend = isProduction() || getEnvVar('SEND_EMAILS') === 'true';
-
+        
         if (shouldSend) {
-            const emailFrom = getEnvVar('EMAIL_FROM', 'onboarding@resend.dev');
-
-            const { data, error } = await getResend().emails.send({
-                from: emailFrom,
-                to: options.to,
-                subject: options.subject,
-                html: options.html || options.text || '',
+            await getTransporter().sendMail({
+                from: getEnvVar('EMAIL_FROM', getEnvVar('EMAIL_USER')),
+                ...options,
             });
-
-            if (error) {
-                console.error('❌ Resend error:', error);
-                return false;
-            }
-
-            console.log(`📧 Email sent to ${options.to} (ID: ${data?.id})`);
+            console.log(`📧 Email sent to ${options.to}`);
         } else {
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             console.log('📧 MOCK EMAIL (Development Mode)');
@@ -103,7 +73,7 @@ export const sendEmail = async (options: {
             if (options.text) console.log(`Text: ${options.text}`);
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         }
-
+        
         return true;
     } catch (error) {
         console.error('❌ Failed to send email:');
@@ -137,7 +107,7 @@ const getCarrierGateway = (carrier?: string): string => {
 };
 
 /**
- * Send SMS via Email-to-SMS gateway (still uses nodemailer)
+ * Send SMS via Email-to-SMS gateway
  */
 export const sendSMSViaEmail = async (
     phone: string,
@@ -147,18 +117,18 @@ export const sendSMSViaEmail = async (
     try {
         // Clean phone number - remove all non-digits
         const cleanPhone = phone.replace(/\D/g, '');
-
+        
         // Remove country code if present (for US numbers)
         const phoneDigits = cleanPhone.startsWith('1') && cleanPhone.length === 11
             ? cleanPhone.substring(1)
             : cleanPhone;
-
+        
         // Get carrier gateway
         const gateway = getCarrierGateway(carrier);
         const smsEmail = `${phoneDigits}${gateway}`;
-
+        
         const shouldSend = isProduction() || getEnvVar('SEND_SMS_EMAILS') === 'true';
-
+        
         if (shouldSend) {
             await getTransporter().sendMail({
                 from: getEnvVar('EMAIL_USER'),
@@ -175,7 +145,7 @@ export const sendSMSViaEmail = async (
             console.log(`📨 Message: ${message}`);
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         }
-
+        
         return true;
     } catch (error) {
         console.error('Failed to send SMS via email gateway:', error);
